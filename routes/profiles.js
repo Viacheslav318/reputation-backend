@@ -11,7 +11,7 @@ router.get('/search', telegramAuth, async (req, res) => {
     return res.status(400).json({ error: 'Search query must be at least 2 characters' })
   }
 
-  const searchTerm = q.trim().toLowerCase()
+  const searchTerm = q.trim()
 
   const { data, error } = await supabase
     .from('profiles')
@@ -66,13 +66,13 @@ router.post('/', telegramAuth, async (req, res) => {
 
   // At least one field required
   if (!full_name?.trim() && !phone?.trim() && !tg_username?.trim()) {
-    return res.status(400).json({ error: 'Fill in at least one field' })
+    return res.status(400).json({ error: 'Заполните хотя бы одно поле' })
   }
 
   // Check duplicates
   const checks = []
-  if (phone) checks.push(`phone.eq.${phone.trim()}`)
-  if (tg_username) checks.push(`tg_username.eq.${tg_username.replace('@', '').trim()}`)
+  if (phone?.trim()) checks.push(`phone.eq.${phone.trim()}`)
+  if (tg_username?.trim()) checks.push(`tg_username.eq.${tg_username.replace('@', '').trim()}`)
 
   if (checks.length > 0) {
     const { data: existing } = await supabase
@@ -98,8 +98,8 @@ router.post('/', telegramAuth, async (req, res) => {
   const { data: profile, error } = await supabase
     .from('profiles')
     .insert({
-      full_name: full_name ? full_name.trim() : null,
-      phone: phone ? phone.trim() : null,
+      full_name: full_name?.trim() || null,
+      phone: phone?.trim() || null,
       tg_username: tg_username ? tg_username.replace('@', '').trim() : null,
       rating_positive: 0,
       rating_negative: 0,
