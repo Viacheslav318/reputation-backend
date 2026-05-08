@@ -69,6 +69,13 @@ router.post('/', telegramAuth, async (req, res) => {
     return res.status(400).json({ error: 'Заполните хотя бы одно поле' })
   }
 
+  // Auto-fill full_name if empty
+  let displayName = full_name?.trim()
+  if (!displayName) {
+    if (phone?.trim()) displayName = phone.trim()
+    else if (tg_username?.trim()) displayName = '@' + tg_username.replace('@', '').trim()
+  }
+
   // Check duplicates
   const checks = []
   if (phone?.trim()) checks.push(`phone.eq.${phone.trim()}`)
@@ -98,7 +105,7 @@ router.post('/', telegramAuth, async (req, res) => {
   const { data: profile, error } = await supabase
     .from('profiles')
     .insert({
-      full_name: full_name?.trim() || null,
+      full_name: displayName,
       phone: phone?.trim() || null,
       tg_username: tg_username ? tg_username.replace('@', '').trim() : null,
       rating_positive: 0,
