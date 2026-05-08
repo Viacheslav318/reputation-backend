@@ -4,8 +4,6 @@ const multer = require('multer')
 const supabase = require('../config/supabase')
 const telegramAuth = require('../middleware/telegramAuth')
 
-const REVIEW_LIMIT = 2 // Max reviews per profile
-
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 5 },
@@ -59,30 +57,6 @@ router.post('/', telegramAuth, upload.array('photos', 5), async (req, res) => {
 
   if (!profile) {
     return res.status(404).json({ error: 'Profile not found' })
-  }
-
-  // Check total review count for this profile (limit = 2)
-  const { count } = await supabase
-    .from('reviews')
-    .select('id', { count: 'exact', head: true })
-    .eq('profile_id', profile_id)
-
-  if (count >= REVIEW_LIMIT) {
-    return res.status(409).json({
-      error: `Достигнут лимит отзывов (максимум ${REVIEW_LIMIT} на одного человека)`
-    })
-  }
-
-  // Check if this user already reviewed this profile
-  const { data: existing } = await supabase
-    .from('reviews')
-    .select('id')
-    .eq('profile_id', profile_id)
-    .eq('author_tg_id', req.tgUser.id)
-    .single()
-
-  if (existing) {
-    return res.status(409).json({ error: 'Вы уже оставляли отзыв об этом человеке' })
   }
 
   // Upsert author
