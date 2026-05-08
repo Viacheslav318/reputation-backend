@@ -4,7 +4,6 @@ const supabase = require('../config/supabase')
 const telegramAuth = require('../middleware/telegramAuth')
 
 // GET /api/profiles/search?q=searchTerm
-// Search profiles by name, phone, or TG username
 router.get('/search', telegramAuth, async (req, res) => {
   const { q } = req.query
 
@@ -16,10 +15,7 @@ router.get('/search', telegramAuth, async (req, res) => {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select(`
-      id, full_name, phone, tg_username,
-      rating_positive, rating_negative, created_at
-    `)
+    .select(`id, full_name, phone, tg_username, rating_positive, rating_negative, created_at`)
     .or(
       `full_name.ilike.%${searchTerm}%,` +
       `phone.ilike.%${searchTerm}%,` +
@@ -37,7 +33,6 @@ router.get('/search', telegramAuth, async (req, res) => {
 })
 
 // GET /api/profiles/:id
-// Get single profile with all reviews
 router.get('/:id', telegramAuth, async (req, res) => {
   const { id } = req.params
 
@@ -53,10 +48,7 @@ router.get('/:id', telegramAuth, async (req, res) => {
 
   const { data: reviews, error: reviewsError } = await supabase
     .from('reviews')
-    .select(`
-      id, type, text, photo_urls, created_at,
-      users(tg_id, username, first_name)
-    `)
+    .select(`id, type, text, photo_urls, created_at`)
     .eq('profile_id', id)
     .order('created_at', { ascending: false })
 
@@ -69,23 +61,23 @@ router.get('/:id', telegramAuth, async (req, res) => {
 })
 
 // POST /api/profiles
-// Create a new person profile
 router.post('/', telegramAuth, async (req, res) => {
   const { full_name, phone, tg_username } = req.body
 
-  if (!full_name || full_name.trim().length < 2) {
-    return res.status(400).json({ error: 'Full name is required (min 2 characters)' })
+  // At least one field required
+  if (!full_name?.trim() && !phone?.trim() && !tg_username?.trim()) {
+    return res.status(400).json({ error: 'Fill in at least one field' })
   }
 
-  // Check if profile with same phone or TG already exists
-  if (phone || tg_username) {
-    const checks = []
-    if (phone) checks.push(`phone.eq.${phone}`)
-    if (tg_username) checks.push(`tg_username.eq.${tg_username.replace('@', '')}`)
+  // Check duplicates
+  const checks = []
+  if (phone) checks.push(`phone.eq.${phone.trim()}`)
+  if (tg_username) checks.push(`tg_username.eq.${tg_username.replace('@', '').trim()}`)
 
+  if (checks.length > 0) {
     const { data: existing } = await supabase
       .from('profiles')
-      .select('id, full_name')
+      .select('id')
       .or(checks.join(','))
       .limit(1)
 
@@ -97,7 +89,6 @@ router.post('/', telegramAuth, async (req, res) => {
     }
   }
 
-  // Upsert the user who is creating the profile
   await supabase.from('users').upsert({
     tg_id: req.tgUser.id,
     username: req.tgUser.username || null,
@@ -107,7 +98,7 @@ router.post('/', telegramAuth, async (req, res) => {
   const { data: profile, error } = await supabase
     .from('profiles')
     .insert({
-      full_name: full_name.trim(),
+      full_name: full_name ? full_name.trim() : null,
       phone: phone ? phone.trim() : null,
       tg_username: tg_username ? tg_username.replace('@', '').trim() : null,
       rating_positive: 0,
